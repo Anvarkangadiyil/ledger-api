@@ -9,6 +9,7 @@ import setupSwagger from "./config/swagger.js";
 
 import healthRouter from "./routes/health.routes.js";
 import accountRouter from "./routes/account.routes.js";
+import transactionRouter from "./routes/transaction.routes.js";
 import errorMiddleware from "./middlewares/error.middleware.js";
 
 const app = express();
@@ -26,6 +27,7 @@ setupSwagger(app);
 // Routes
 app.use("/api/v1", healthRouter);
 app.use("/api/v1/accounts", accountRouter);
+app.use("/api/v1/accounts", transactionRouter);
 
 app.use(errorMiddleware);
 
