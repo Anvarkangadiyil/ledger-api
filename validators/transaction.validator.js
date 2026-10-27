@@ -94,4 +94,62 @@ export const validateCreateTransactionInput = (body) => {
   };
 };
 
+export const DEFAULT_HISTORY_PAGE = 1;
+export const DEFAULT_HISTORY_LIMIT = 20;
+export const MAX_HISTORY_LIMIT = 100;
+
+const parsePositiveIntegerQuery = (value, fieldName, { defaultValue, max }) => {
+  if (value === undefined) {
+    return defaultValue;
+  }
+
+  if (typeof value !== "string" || !/^\d+$/.test(value)) {
+    throw new ApiError(400, `${fieldName} must be a positive integer`);
+  }
+
+  const parsed = Number(value);
+
+  if (!Number.isSafeInteger(parsed) || parsed < 1) {
+    throw new ApiError(400, `${fieldName} must be a positive integer`);
+  }
+
+  if (max !== undefined && parsed > max) {
+    throw new ApiError(400, `${fieldName} cannot exceed ${max}`);
+  }
+
+  return parsed;
+};
+
+/**
+ * Validate the optional transaction-history query parameters.
+ *
+ * Repeated parameters arrive as arrays and are rejected rather than coerced,
+ * which keeps pagination deterministic.
+ */
+export const validateTransactionHistoryQuery = (query) => {
+  if (query === null || typeof query !== "object" || Array.isArray(query)) {
+    throw new ApiError(400, "Query parameters must be an object");
+  }
+
+  const { type, page, limit } = query;
+
+  if (
+    type !== undefined &&
+    (typeof type !== "string" || !TRANSACTION_TYPES.includes(type))
+  ) {
+    throw new ApiError(400, "type must be either credit or debit");
+  }
+
+  return {
+    type,
+    page: parsePositiveIntegerQuery(page, "page", {
+      defaultValue: DEFAULT_HISTORY_PAGE,
+    }),
+    limit: parsePositiveIntegerQuery(limit, "limit", {
+      defaultValue: DEFAULT_HISTORY_LIMIT,
+      max: MAX_HISTORY_LIMIT,
+    }),
+  };
+};
+
 export default validateCreateTransactionInput;
