@@ -7,7 +7,8 @@
     "start": "node app.js",
     "dev": "nodemon app.js",
     "test": "node --test --test-concurrency=1 test",
-    "lint": "eslint ."
+    "lint": "eslint .",
+    "indexes": "node scripts/ensure-indexes.js"
   },
   "dependencies": {
     "cookie-parser": "~1.4.4",
