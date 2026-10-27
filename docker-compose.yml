@@ -1,0 +1,75 @@
+name: ledger-api
+
+# Shared image definition for the app and the one-shot index service. They use
+# the same build so the schema and indexes are always from the same revision.
+x-app-image: &app-image
+  image: ledger-api:local
+  build:
+    context: .
+    dockerfile: Dockerfile
+
+services:
+  mongo:
+    image: mongo:8.0
+    command: ["mongod", "--replSet", "rs0", "--bind_ip_all"]
+    volumes:
+      - mongo-data:/data/db
+    healthcheck:
+      test:
+        [
+          "CMD",
+          "mongosh",
+          "--quiet",
+          "--eval",
+          "quit(db.adminCommand('ping').ok ? 0 : 1)",
+        ]
+      interval: 5s
+      timeout: 5s
+      retries: 20
+      start_period: 10s
+    restart: unless-stopped
+
+  # One-shot: create the replica set once and wait until it has a primary.
+  mongo-init:
+    image: mongo:8.0
+    depends_on:
+      mongo:
+        condition: service_healthy
+    entrypoint:
+      [
+        "mongosh",
+        "mongodb://mongo:27017/admin?directConnection=true",
+        "--quiet",
+        "/scripts/mongo-init.js",
+      ]
+    volumes:
+      - ./docker/mongo-init.js:/scripts/mongo-init.js:ro
+    restart: "no"
+
+  # One-shot: create the declared indexes before the API accepts traffic.
+  indexes:
+    <<: *app-image
+    environment:
+      NODE_ENV: production
+      DB_URI: mongodb://mongo:27017/ledger?replicaSet=rs0
+    command: ["npm", "run", "indexes"]
+    depends_on:
+      mongo-init:
+        condition: service_completed_successfully
+    restart: "no"
+
+  app:
+    <<: *app-image
+    environment:
+      NODE_ENV: production
+      PORT: "${APP_PORT:-3000}"
+      DB_URI: mongodb://mongo:27017/ledger?replicaSet=rs0
+    ports:
+      - "${APP_PORT:-3000}:${APP_PORT:-3000}"
+    depends_on:
+      indexes:
+        condition: service_completed_successfully
+    restart: unless-stopped
+
+volumes:
+  mongo-data:

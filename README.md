@@ -32,13 +32,94 @@ between accounts.
 
 ## Prerequisites
 
-- Node.js 20 or newer. The project was verified on Node.js 20.20.0; no `engines`
-  constraint is declared in `package.json`.
+- Docker Desktop (Windows/macOS) or Docker Engine with Docker Compose v2.17+
+  for the container setup. This is the simplest way for a reviewer to run the
+  project.
+- Node.js 20 or newer for the non-Docker setup. The project was verified on
+  Node.js 20.20.0; no `engines` constraint is declared in `package.json`.
 - npm.
-- MongoDB configured as a **replica set** or sharded cluster. Transactions are
-  required and there is no two-write fallback. MongoDB 8.3 was used locally.
+- MongoDB configured as a **replica set** or sharded cluster (not needed with
+  Docker). Transactions are required and there is no two-write fallback.
+  MongoDB 8.3 was used locally.
 
-## Setup
+## Quick start with Docker
+
+The Compose stack runs the API, a single-node MongoDB 8.0 replica set, a
+one-shot replica-set initializer, and a one-shot index setup. No local MongoDB
+or `.env` file is required.
+
+```bash
+docker compose up --build
+```
+
+Wait for `Server running` in the app logs, then open:
+
+- API: `http://localhost:3000`
+- Swagger UI: `http://localhost:3000/api-docs`
+- OpenAPI JSON: `http://localhost:3000/api-docs.json`
+
+Verify the stack:
+
+```bash
+curl http://localhost:3000/api/v1/health
+curl -X POST http://localhost:3000/api/v1/accounts \
+  -H "Content-Type: application/json" \
+  -d '{"name":"Ada Lovelace"}'
+```
+
+Run in the background and follow the logs:
+
+```bash
+docker compose up -d --build
+docker compose ps
+docker compose logs -f app
+```
+
+Stop the stack:
+
+```bash
+docker compose down       # stop, keep the MongoDB data volume
+docker compose down -v    # stop and delete the data volume for a clean start
+```
+
+Use a different host port if `3000` is already in use. The app and the Swagger
+server URL both follow `APP_PORT`.
+
+Bash:
+
+```bash
+APP_PORT=8080 docker compose up --build
+```
+
+PowerShell:
+
+```powershell
+$env:APP_PORT = "8080"
+docker compose up --build
+```
+
+Services started by Compose:
+
+| Service | Purpose |
+| --- | --- |
+| `mongo` | MongoDB 8.0 started with `--replSet rs0`. Data persists in the `mongo-data` volume; its port is not published to the host. |
+| `mongo-init` | Idempotently runs `rs.initiate(...)` and waits for a primary. |
+| `indexes` | Runs `npm run indexes` once, before the API starts. |
+| `app` | Production Node image built from `Dockerfile`, with a health check at `/api/v1/health`. |
+
+Inspect the replica set:
+
+```bash
+docker compose exec mongo mongosh --quiet --eval "rs.status().ok"
+```
+
+The app container uses `NODE_ENV=production`, so stack traces and database
+details are not returned in API errors. This setup is intended for local
+evaluation and does not configure MongoDB authentication or TLS.
+
+## Local setup without Docker
+
+Skip this section if you use the Compose stack above.
 
 1. Install dependencies:
 
@@ -428,6 +509,11 @@ reference for a genuinely new transfer. Self-transfers are rejected with `400`.
 
 ## Testing
 
+The Docker image installs production dependencies only, so run the test suite on
+the host with the setup described in [Local setup without Docker](#local-setup-without-docker).
+The test database remains a normal MongoDB replica set; Compose is only for
+running the API.
+
 Run the lint check and the full suite:
 
 ```bash
@@ -468,6 +554,7 @@ is available.
 app.js                  Express app, middleware, route mounting
 config/                 Environment, database, and Swagger setup
 controllers/            Thin request handlers
+docker/                 Compose replica-set initializer
 errors/                 ApiError class
 middlewares/            Global error and not-found middleware
 models/                 Account and Transaction schemas and indexes
@@ -477,6 +564,8 @@ services/               Account, transaction, history, and transfer logic
 test/                   Integration, validation, immutability, and contract tests
 utils/                  Async handler and money conversion
 validators/             Request and query validation
+Dockerfile              Production application image
+docker-compose.yml      API, MongoDB replica set, init, and index services
 ```
 
 ## Assumptions and limitations
@@ -495,3 +584,5 @@ validators/             Request and query validation
   having used it already causes a `409`.
 - Automated tests were run against MongoDB 8.3 on Node.js 20.20.0. No CI
   pipeline is included.
+- The Compose stack is for local evaluation: it has no MongoDB authentication,
+  TLS, or public MongoDB port. Do not expose it directly to the internet.
