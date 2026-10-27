@@ -1,6 +1,9 @@
 import { Router } from "express";
 
-import { createAccountHandler } from "../controllers/account.controller.js";
+import {
+  createAccountHandler,
+  getAccountBalanceHandler,
+} from "../controllers/account.controller.js";
 
 const accountRouter = Router();
 
@@ -72,5 +75,86 @@ const accountRouter = Router();
  *               $ref: '#/components/schemas/ErrorResponse'
  */
 accountRouter.post("/", createAccountHandler);
+
+/**
+ * @openapi
+ * /api/v1/accounts/{accountId}/balance:
+ *   get:
+ *     summary: Get the current account balance
+ *     description: >
+ *       Returns the balance persisted for the account. The value is stored and
+ *       updated in integer minor units, so it is not recomputed from
+ *       transaction history and does not drift through floating-point
+ *       arithmetic. Balance changes only happen through transaction
+ *       endpoints, never through this read.
+ *     tags:
+ *       - Accounts
+ *     parameters:
+ *       - in: path
+ *         name: accountId
+ *         required: true
+ *         description: 24-character hexadecimal account identifier.
+ *         schema:
+ *           type: string
+ *           pattern: '^[a-fA-F0-9]{24}$'
+ *           example: 665f1c2a9b1e8a0012a4d3f1
+ *     responses:
+ *       200:
+ *         description: Current account balance.
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               required: [success, data]
+ *               properties:
+ *                 success:
+ *                   type: boolean
+ *                   example: true
+ *                 data:
+ *                   type: object
+ *                   required: [account_id, balance]
+ *                   properties:
+ *                     account_id:
+ *                       type: string
+ *                       description: Public account identifier.
+ *                       example: 665f1c2a9b1e8a0012a4d3f1
+ *                     balance:
+ *                       type: number
+ *                       description: >
+ *                         Current balance in major currency units with at most
+ *                         two decimal places.
+ *                       example: 125.5
+ *             example:
+ *               success: true
+ *               data:
+ *                 account_id: 665f1c2a9b1e8a0012a4d3f1
+ *                 balance: 125.5
+ *       400:
+ *         description: >
+ *           Malformed account ID. The ID must be 24 hexadecimal characters.
+ *         content:
+ *           application/json:
+ *             schema:
+ *               $ref: '#/components/schemas/ErrorResponse'
+ *             example:
+ *               success: false
+ *               error: Invalid account ID
+ *       404:
+ *         description: The account ID is well-formed but no account exists.
+ *         content:
+ *           application/json:
+ *             schema:
+ *               $ref: '#/components/schemas/ErrorResponse'
+ *             example:
+ *               success: false
+ *               error: Account not found
+ *       500:
+ *         description: Unexpected server or database failure.
+ *         content:
+ *           application/json:
+ *             schema:
+ *               $ref: '#/components/schemas/ErrorResponse'
+ */
+accountRouter.get("/:accountId/balance", getAccountBalanceHandler);
 
 export default accountRouter;
