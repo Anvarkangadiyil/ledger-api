@@ -123,6 +123,52 @@ const options = {
             },
           },
         },
+        Transfer: {
+          type: "object",
+          required: [
+            "reference_id",
+            "amount",
+            "description",
+            "source_account_id",
+            "destination_account_id",
+            "created_at",
+          ],
+          properties: {
+            reference_id: {
+              type: "string",
+              description:
+                "Transfer reference recorded on both ledger entries. It must be unused by both accounts.",
+              example: "TRF-2026-001",
+            },
+            amount: {
+              type: "number",
+              description:
+                "Transferred amount in major currency units with at most two decimal places.",
+              example: 25,
+            },
+            description: {
+              type: "string",
+              description: "Human-readable transfer description.",
+              example: "Rent share",
+            },
+            source_account_id: {
+              type: "string",
+              description: "Account debited by the transfer.",
+              example: "665f1c2a9b1e8a0012a4d3f1",
+            },
+            destination_account_id: {
+              type: "string",
+              description: "Account credited by the transfer.",
+              example: "666f1c2a9b1e8a0012a4d3f2",
+            },
+            created_at: {
+              type: "string",
+              format: "date-time",
+              description: "Server-generated transfer timestamp (UTC).",
+              example: "2026-10-27T10:10:00.000Z",
+            },
+          },
+        },
       },
     },
   },

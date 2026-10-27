@@ -8,6 +8,9 @@ import { minorUnitsToAmount } from "../utils/money.js";
 const DUPLICATE_REFERENCE_MESSAGE =
   "A transaction with this reference_id already exists for this account";
 
+const DUPLICATE_TRANSFER_REFERENCE_MESSAGE =
+  "A transaction with this reference_id already exists for the source or destination account";
+
 const TRANSACTION_UNSUPPORTED_PATTERN =
   /Transaction numbers are only allowed|transactions are not supported|replica set member or mongos|does not support retryable writes/i;
 
@@ -109,6 +112,122 @@ export const createTransaction = async ({
 
     if (isDuplicateKeyError(error)) {
       throw new ApiError(409, DUPLICATE_REFERENCE_MESSAGE);
+    }
+
+    if (isTransactionUnsupportedError(error)) {
+      console.error(
+        "MongoDB transaction support is unavailable:",
+        error.message
+      );
+      throw new ApiError(
+        503,
+        "Transaction processing is unavailable because MongoDB does not support transactions"
+      );
+    }
+
+    throw error;
+  } finally {
+    await session.endSession();
+  }
+};
+
+/**
+ * Move money between two accounts in one MongoDB transaction.
+ *
+ * The source debit is conditional on sufficient funds, both balances are
+ * updated, and both immutable ledger entries are inserted in the same session.
+ * Any failure rolls back every write. The transfer reference is used for both
+ * ledger entries and is therefore unique per account through the existing
+ * compound index.
+ */
+export const createTransfer = async ({
+  sourceAccountId,
+  destinationAccountId,
+  amountMinor,
+  description,
+  referenceId,
+}) => {
+  const session = await mongoose.startSession();
+
+  try {
+    return await session.withTransaction(async () => {
+      const sourceAccount = await Account.findOneAndUpdate(
+        {
+          _id: sourceAccountId,
+          balanceMinor: { $gte: amountMinor },
+        },
+        { $inc: { balanceMinor: -amountMinor } },
+        { returnDocument: "after", session }
+      );
+
+      if (!sourceAccount) {
+        const sourceExists = await Account.exists({
+          _id: sourceAccountId,
+        }).session(session);
+
+        if (!sourceExists) {
+          throw new ApiError(404, "Source account not found");
+        }
+
+        throw new ApiError(409, "Insufficient funds");
+      }
+
+      const destinationAccount = await Account.findByIdAndUpdate(
+        destinationAccountId,
+        { $inc: { balanceMinor: amountMinor } },
+        { returnDocument: "after", session }
+      );
+
+      if (!destinationAccount) {
+        throw new ApiError(404, "Destination account not found");
+      }
+
+      const [debitTransaction, creditTransaction] = await Transaction.create(
+        [
+          {
+            accountId: sourceAccountId,
+            type: "debit",
+            amountMinor,
+            description,
+            referenceId,
+          },
+          {
+            accountId: destinationAccountId,
+            type: "credit",
+            amountMinor,
+            description,
+            referenceId,
+          },
+        ],
+        { session, ordered: true }
+      );
+
+      return {
+        transfer: {
+          reference_id: referenceId,
+          amount: minorUnitsToAmount(amountMinor),
+          description,
+          source_account_id: sourceAccountId,
+          destination_account_id: destinationAccountId,
+          created_at: debitTransaction.createdAt.toISOString(),
+        },
+        source_balance: minorUnitsToAmount(sourceAccount.balanceMinor),
+        destination_balance: minorUnitsToAmount(
+          destinationAccount.balanceMinor
+        ),
+        transactions: [
+          toTransactionResponse(debitTransaction),
+          toTransactionResponse(creditTransaction),
+        ],
+      };
+    });
+  } catch (error) {
+    if (error instanceof ApiError) {
+      throw error;
+    }
+
+    if (isDuplicateKeyError(error)) {
+      throw new ApiError(409, DUPLICATE_TRANSFER_REFERENCE_MESSAGE);
     }
 
     if (isTransactionUnsupportedError(error)) {
