@@ -128,4 +128,48 @@ export const createTransaction = async ({
   }
 };
 
+/**
+ * Retrieve one page of an account's ledger entries, newest first.
+ *
+ * Pagination runs in MongoDB via skip/limit, and the `_id` tie-breaker keeps
+ * page boundaries stable when multiple entries share a created_at value.
+ * `total_pages` is 0 when the account has no matching transactions.
+ */
+export const getTransactionHistory = async ({
+  accountId,
+  type,
+  page,
+  limit,
+}) => {
+  const accountExists = await Account.exists({ _id: accountId });
+
+  if (!accountExists) {
+    throw new ApiError(404, "Account not found");
+  }
+
+  const filter = { accountId };
+  if (type !== undefined) {
+    filter.type = type;
+  }
+
+  const [transactions, total] = await Promise.all([
+    Transaction.find(filter)
+      .sort({ createdAt: -1, _id: -1 })
+      .skip((page - 1) * limit)
+      .limit(limit)
+      .lean(),
+    Transaction.countDocuments(filter),
+  ]);
+
+  return {
+    transactions: transactions.map(toTransactionResponse),
+    pagination: {
+      page,
+      limit,
+      total,
+      total_pages: Math.ceil(total / limit),
+    },
+  };
+};
+
 export default createTransaction;
