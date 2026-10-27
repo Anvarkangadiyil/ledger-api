@@ -70,6 +70,59 @@ const options = {
             },
           },
         },
+        Transaction: {
+          type: "object",
+          required: [
+            "id",
+            "account_id",
+            "type",
+            "amount",
+            "description",
+            "reference_id",
+            "created_at",
+          ],
+          properties: {
+            id: {
+              type: "string",
+              description: "Public transaction identifier.",
+              example: "666f1c2a9b1e8a0012a4d3f2",
+            },
+            account_id: {
+              type: "string",
+              description: "Account that owns this ledger entry.",
+              example: "665f1c2a9b1e8a0012a4d3f1",
+            },
+            type: {
+              type: "string",
+              enum: ["credit", "debit"],
+              description: "Whether the entry increases or decreases the balance.",
+              example: "credit",
+            },
+            amount: {
+              type: "number",
+              description:
+                "Transaction amount in major currency units with at most two decimal places.",
+              example: 125.5,
+            },
+            description: {
+              type: "string",
+              description: "Human-readable transaction description.",
+              example: "Invoice payment",
+            },
+            reference_id: {
+              type: "string",
+              description:
+                "Caller-supplied reference ID. It is unique within one account and may be reused by another account.",
+              example: "INV-2026-001",
+            },
+            created_at: {
+              type: "string",
+              format: "date-time",
+              description: "Server-generated transaction timestamp (UTC).",
+              example: "2026-10-27T10:05:00.000Z",
+            },
+          },
+        },
       },
     },
   },
