@@ -1,7 +1,10 @@
 import assert from "node:assert/strict";
+import { once } from "node:events";
 import { test } from "node:test";
 
 process.env.NODE_ENV = "test";
+process.env.DB_URI =
+  process.env.DB_URI || "mongodb://127.0.0.1:27017/ledger_api_test";
 
 const { swaggerSpec } = await import("../config/swagger.js");
 
@@ -55,6 +58,14 @@ test("documents every implemented endpoint and status code", () => {
   assert.deepEqual(documented, expected);
 });
 
+test("documents the server URL used by the app", () => {
+  const expectedPort = process.env.PORT || 3000;
+  assert.equal(
+    swaggerSpec.servers?.[0]?.url,
+    `http://localhost:${expectedPort}`
+  );
+});
+
 test("documents no transaction update or delete operations", () => {
   for (const { path, method } of getOperations()) {
     assert.ok(
@@ -105,5 +116,69 @@ test("write endpoints reject unexpected fields in their documented schemas", () 
       false,
       `${method.toUpperCase()} ${path} must reject unexpected fields`
     );
+  }
+});
+
+test("documents the exact public response field names", () => {
+  const { schemas } = swaggerSpec.components;
+
+  assert.deepEqual([...schemas.Account.required].sort(), [
+    "balance",
+    "created_at",
+    "id",
+    "name",
+  ]);
+  assert.deepEqual([...schemas.Transaction.required].sort(), [
+    "account_id",
+    "amount",
+    "created_at",
+    "description",
+    "id",
+    "reference_id",
+    "type",
+  ]);
+  assert.deepEqual([...schemas.Transfer.required].sort(), [
+    "amount",
+    "created_at",
+    "description",
+    "destination_account_id",
+    "reference_id",
+    "source_account_id",
+  ]);
+
+  assert.deepEqual(schemas.Transaction.properties.type.enum, [
+    "credit",
+    "debit",
+  ]);
+  assert.equal(schemas.Account.properties.created_at.format, "date-time");
+  assert.equal(schemas.Transaction.properties.created_at.format, "date-time");
+  assert.equal(schemas.Transfer.properties.created_at.format, "date-time");
+});
+
+test("serves the Swagger UI and generated OpenAPI document", async () => {
+  const { default: app } = await import("../app.js");
+  const server = app.listen(0);
+  await once(server, "listening");
+
+  try {
+    const baseUrl = `http://127.0.0.1:${server.address().port}`;
+
+    const uiResponse = await fetch(`${baseUrl}/api-docs/`);
+    assert.equal(uiResponse.status, 200);
+
+    const uiHtml = await uiResponse.text();
+    assert.match(uiHtml, /swagger ui/i);
+
+    const specResponse = await fetch(`${baseUrl}/api-docs.json`);
+    assert.equal(specResponse.status, 200);
+
+    const spec = await specResponse.json();
+    assert.ok(spec.paths["/api/v1/transfers"]?.post);
+    assert.ok(
+      spec.paths["/api/v1/accounts/{accountId}/transactions"]?.get
+    );
+    assert.ok(spec.components?.schemas?.Transfer);
+  } finally {
+    await new Promise((resolve) => server.close(resolve));
   }
 });
