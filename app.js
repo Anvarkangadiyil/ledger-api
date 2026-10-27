@@ -10,6 +10,7 @@ import setupSwagger from "./config/swagger.js";
 import healthRouter from "./routes/health.routes.js";
 import accountRouter from "./routes/account.routes.js";
 import transactionRouter from "./routes/transaction.routes.js";
+import transferRouter from "./routes/transfer.routes.js";
 import errorMiddleware from "./middlewares/error.middleware.js";
 import notFoundMiddleware from "./middlewares/not-found.middleware.js";
 
@@ -29,6 +30,7 @@ setupSwagger(app);
 app.use("/api/v1", healthRouter);
 app.use("/api/v1/accounts", accountRouter);
 app.use("/api/v1/accounts", transactionRouter);
+app.use("/api/v1/transfers", transferRouter);
 
 app.use(notFoundMiddleware);
 app.use(errorMiddleware);
