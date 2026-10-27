@@ -228,6 +228,8 @@ test("rejects invalid transaction payloads without side effects", async () => {
     makeBody({ amount: "10" }),
     makeBody({ amount: null }),
     makeBody({ amount: undefined }),
+    makeBody({ amount: 90071992547409.92 }),
+    makeBody({ amount: 1e21 }),
     makeBody({ description: "   " }),
     makeBody({ description: 10 }),
     makeBody({ description: "a".repeat(501) }),
