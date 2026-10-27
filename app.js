@@ -7,7 +7,7 @@ import connectToDatabase from "./config/db.js";
 import setupSwagger from "./config/swagger.js";
 
 import healthRouter from "./routes/health.routes.js";
-import errorMiddleware from "./middleware/error.middleware.js";
+import errorMiddleware from "./middlewares/error.middleware.js";
 
 const app = express();
 
