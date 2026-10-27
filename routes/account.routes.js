@@ -57,9 +57,9 @@ const accountRouter = Router();
  *                 created_at: '2026-10-27T10:00:00.000Z'
  *       400:
  *         description: >
- *           Invalid request. Returned for a missing, blank, non-string, or
- *           overlong name, or for unsupported fields such as `balance`, `id`,
- *           `_id`, `created_at`, or `createdAt`.
+ *           Invalid request. Returned for malformed JSON, a missing, blank,
+ *           non-string, or overlong name, or for unsupported fields such as
+ *           `balance`, `id`, `_id`, `created_at`, or `createdAt`.
  *         content:
  *           application/json:
  *             schema:
@@ -67,6 +67,12 @@ const accountRouter = Router();
  *             example:
  *               success: false
  *               error: 'Unexpected field(s): balance'
+ *       413:
+ *         description: Request body is too large.
+ *         content:
+ *           application/json:
+ *             schema:
+ *               $ref: '#/components/schemas/ErrorResponse'
  *       500:
  *         description: Unexpected server or database failure.
  *         content:

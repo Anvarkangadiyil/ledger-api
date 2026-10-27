@@ -120,10 +120,11 @@ const transactionRouter = Router();
  *                 balance: 125.5
  *       400:
  *         description: >
- *           Invalid account ID or request body. Returned for a malformed ID,
- *           unsupported type, non-positive or over-precise amount, blank
- *           description/reference ID, or unexpected fields such as
- *           `account_id`, `id`, `_id`, `created_at`, or internal amount fields.
+ *           Invalid account ID or request body. Returned for malformed JSON, a
+ *           malformed ID, unsupported type, non-positive or over-precise
+ *           amount, blank description/reference ID, or unexpected fields such
+ *           as `account_id`, `id`, `_id`, `created_at`, or internal amount
+ *           fields.
  *         content:
  *           application/json:
  *             schema:
@@ -168,6 +169,12 @@ const transactionRouter = Router();
  *                 value:
  *                   success: false
  *                   error: A transaction with this reference_id already exists for this account
+ *       413:
+ *         description: Request body is too large.
+ *         content:
+ *           application/json:
+ *             schema:
+ *               $ref: '#/components/schemas/ErrorResponse'
  *       503:
  *         description: >
  *           MongoDB is not running with transaction support (a replica set or

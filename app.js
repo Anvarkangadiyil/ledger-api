@@ -11,6 +11,7 @@ import healthRouter from "./routes/health.routes.js";
 import accountRouter from "./routes/account.routes.js";
 import transactionRouter from "./routes/transaction.routes.js";
 import errorMiddleware from "./middlewares/error.middleware.js";
+import notFoundMiddleware from "./middlewares/not-found.middleware.js";
 
 const app = express();
 
@@ -29,6 +30,7 @@ app.use("/api/v1", healthRouter);
 app.use("/api/v1/accounts", accountRouter);
 app.use("/api/v1/accounts", transactionRouter);
 
+app.use(notFoundMiddleware);
 app.use(errorMiddleware);
 
 const isMainModule =
