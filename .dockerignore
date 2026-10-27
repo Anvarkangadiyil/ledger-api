@@ -1,0 +1,28 @@
+# Dependencies are installed inside the image with `npm ci`.
+node_modules
+npm-debug.log*
+
+# Version control and local tooling.
+.git
+.gitignore
+.vscode
+.idea
+
+# Never copy local environment or secret files into the image.
+.env
+.env.*.local
+
+# Local notes, prompts, and generated coverage.
+*.md
+!README.md
+coverage
+.nyc_output
+
+# Tests and Docker helpers are only needed on the host.
+test
+docker
+
+# Build inputs are read by Docker/Compose, not needed inside the runtime image.
+Dockerfile
+docker-compose.yml
+.dockerignore
